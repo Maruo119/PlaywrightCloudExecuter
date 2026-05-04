@@ -8,6 +8,10 @@ PlaywrightをAWS Fargateで定期実行するシステムです。EventBridgeで
 - Yahoo スクレイパー実装完了（title 取得→S3 保存）
 - ローカル動作確認済み
 
+✅ **フェーズ2 実装完了**
+- AWS Secrets Manager への移行完了
+- ローカル・本番環境ともに Secrets Manager でシークレット管理
+
 ## プロジェクト構成
 
 ```
@@ -42,16 +46,59 @@ PlaywrightCloudExecuter/
 
 ### ローカル開発環境での実行
 
+本アプリケーションはすべての環境で **AWS Secrets Manager** を使用してシークレット情報を管理しています。
+
+#### 前提条件
+
+- AWS CLI がインストールされていること
+- AWS アカウントに認証済みの AWS CLI プロファイルが設定されていること
+
+#### AWS CLI プロファイルの設定
+
+1. **AWS 認証情報を設定**
+```bash
+# AWS CLI の認証設定
+aws configure --profile your-profile-name
+# または既存プロファイルを使用
+```
+
+2. **環境変数で AWS プロファイルを指定**
+```bash
+export AWS_PROFILE=your-profile-name
+```
+
+#### アプリケーション実行手順
+
 1. **依存パッケージのインストール**
 ```bash
 cd playwright-app
 npm install
 ```
 
-2. **環境変数ファイルの作成**
+2. **AWS Secrets Manager にシークレット値を事前登録**
+
+アプリケーションは以下のシークレット値を Secrets Manager から読み込みます：
+
+| シークレット ID | 説明 |
+|--------------|------|
+| `INFRA_AWS_REGION` | AWS リージョン（例：ap-northeast-1） |
+| `INFRA_AWS_S3_BUCKET` | S3 バケット名（例：PlaywrightOutput） |
+| `INFRA_AWS_ACCESS_KEY_ID` | AWS アクセスキー |
+| `INFRA_SECRET_ACCESS_KEY` | AWS シークレットアクセスキー |
+
 ```bash
-cp .env.example .env
-# .envファイルを編集して必要な情報を入力
+# 例：Secrets Manager にシークレットを作成
+aws secretsmanager create-secret \
+  --name INFRA_AWS_REGION \
+  --secret-string "ap-northeast-1" \
+  --profile your-profile-name
+
+aws secretsmanager create-secret \
+  --name INFRA_AWS_S3_BUCKET \
+  --secret-string "PlaywrightOutput" \
+  --profile your-profile-name
+
+# その他のシークレットも同様に登録...
 ```
 
 3. **TypeScriptのコンパイルと実行**
@@ -85,19 +132,30 @@ docker run --rm -e SITE_NAME=yahoo playwright-cloud-executer:latest
 - **EventBridge**: 定期実行トリガー
 - **S3**: 結果保存先
 - **CloudWatch**: ログ記録
+- **AWS Secrets Manager**: シークレット情報管理
 
-## 環境変数
+## 環境変数と設定
+
+### シークレット管理（AWS Secrets Manager）
+
+以下の設定値は **AWS Secrets Manager** で管理されます：
+
+- `INFRA_AWS_REGION`: AWS リージョン
+- `INFRA_AWS_S3_BUCKET`: S3 バケット名
+- `INFRA_AWS_ACCESS_KEY_ID`: AWS アクセスキー
+- `INFRA_SECRET_ACCESS_KEY`: AWS シークレットアクセスキー
+
+### アプリケーション環境変数
+
+以下の環境変数は通常の環境変数として設定できます：
 
 ```
 NODE_ENV=production
-AWS_REGION=ap-northeast-1
-AWS_S3_BUCKET=PlaywrightOutput
-AWS_ACCESS_KEY_ID=<your-key>
-AWS_SECRET_ACCESS_KEY=<your-secret>
 LOG_LEVEL=info
 SITE_NAME=yahoo
 BROWSER_HEADLESS=true
 PAGE_TIMEOUT=30000
+AWS_PROFILE=your-profile-name  # ローカル開発時の AWS CLI プロファイル
 ```
 
 ## トラブルシューティング
