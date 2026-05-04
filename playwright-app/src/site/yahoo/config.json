@@ -1,0 +1,10 @@
+{
+  "name": "yahoo",
+  "baseUrl": "https://www.yahoo.co.jp/",
+  "description": "Yahoo Japan ホームページ",
+  "selectors": {
+    "title": "title"
+  },
+  "retryCount": 3,
+  "timeout": 30000
+}

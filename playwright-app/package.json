@@ -1,0 +1,31 @@
+{
+  "name": "playwright-cloud-executer",
+  "version": "1.0.0",
+  "description": "Playwright automation running on AWS Fargate with EventBridge scheduler",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "playwright",
+    "aws",
+    "fargate",
+    "webscraping"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "@aws-sdk/client-s3": "^3.450.0",
+    "winston": "^3.11.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "@types/node": "^20.10.6"
+  }
+}
