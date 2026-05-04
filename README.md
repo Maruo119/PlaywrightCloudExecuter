@@ -2,6 +2,12 @@
 
 PlaywrightをAWS Fargateで定期実行するシステムです。EventBridgeで1時間ごとにLambda関数を実行し、Fargateでコンテナを起動してPlaywrightタスクを実行します。
 
+✅ **フェーズ1 実装完了**
+- TypeScript 開発環境セットアップ完了
+- Playwright ブラウザ自動化実装完了
+- Yahoo スクレイパー実装完了（title 取得→S3 保存）
+- ローカル動作確認済み
+
 ## プロジェクト構成
 
 ```

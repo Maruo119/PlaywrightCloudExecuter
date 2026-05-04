@@ -64,7 +64,7 @@ class BrowserManager {
 
       // ユーザーエージェント設定（日本語環境）
       await page.context().addInitScript(() => {
-        Object.defineProperty(navigator, 'language', {
+        Object.defineProperty((navigator as any), 'language', {
           get: () => 'ja',
         });
       });
