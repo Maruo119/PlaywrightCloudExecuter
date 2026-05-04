@@ -8,7 +8,7 @@ import YahooScraper from './site/yahoo/scraper';
  * メインアプリケーション
  */
 async function main(): Promise<void> {
-  const appConfig = loadAppConfig();
+  const appConfig = await loadAppConfig();
   const siteConfig = loadSiteConfig(appConfig.siteName);
 
   logger.info('='.repeat(60));

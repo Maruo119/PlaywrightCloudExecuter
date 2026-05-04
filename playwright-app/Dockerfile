@@ -36,6 +36,9 @@ ENV LC_ALL=ja_JP.UTF-8
 ENV TZ=Asia/Tokyo
 ENV NODE_ENV=production
 
+# シークレット情報は AWS Secrets Manager から取得するため、.env ファイルは含めない
+# IAM ロール（Fargate タスク実行ロール）を使用して Secrets Manager にアクセスします
+
 # ビルドステージからファイルをコピー
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
