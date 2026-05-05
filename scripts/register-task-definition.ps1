@@ -60,10 +60,7 @@ Write-Host ""
 
 Write-Host "Step 2: Registering task definition with AWS..." -ForegroundColor Cyan
 
-$RegisterCmd = "aws ecs register-task-definition `
-  --cli-input-json file://$TaskDefinitionFile `
-  --region $Region `
-  --profile $Profile"
+$RegisterCmd = "aws ecs register-task-definition --cli-input-json file://$TaskDefinitionFile --region $Region --profile $Profile"
 
 if ($DryRun) {
     Write-Host "[DRY RUN] Task definition registration command:" -ForegroundColor Yellow
@@ -97,10 +94,7 @@ Write-Host ""
 
 Write-Host "Step 3: Verifying task definition registration..." -ForegroundColor Cyan
 
-$DescribeCmd = "aws ecs describe-task-definition `
-  --task-definition playwright-cloud-executer `
-  --region $Region `
-  --profile $Profile"
+$DescribeCmd = "aws ecs describe-task-definition --task-definition playwright-cloud-executer --region $Region --profile $Profile"
 
 if ($DryRun) {
     Write-Host "[DRY RUN] Task definition verification command:" -ForegroundColor Yellow

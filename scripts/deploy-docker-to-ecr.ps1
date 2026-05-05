@@ -59,7 +59,7 @@ Write-Host ""
 
 Write-Host "Step 1: ECR Login..." -ForegroundColor Cyan
 
-$EcrLoginCmd = "aws ecr get-login-password --region $Region --profile $Profile | docker login --username AWS --password-stdin $EcrRegistry"
+$EcrLoginCmd = "aws ecr get-login-password --region $Region --profile $Profile 2>$null | docker login --username AWS --password-stdin $EcrRegistry"
 
 if ($DryRun) {
     Write-Host "[DRY RUN] $EcrLoginCmd" -ForegroundColor Yellow
