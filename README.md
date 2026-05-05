@@ -108,10 +108,137 @@ npm run dev
 
 ### Docker での実行
 
+ローカル環境で Docker を使用してアプリケーションを実行できます。AWS Secrets Manager へのアクセスに必要な認証情報は、AWS CLI プロファイルから自動的に取得されます。
+
+#### 前提条件
+
+- Docker がインストールされていること
+- AWS CLI がインストールされていること
+- AWS CLI プロファイルが設定されていること（前述の「ローカル開発環境での実行」と同じ）
+
+#### 方法1：ヘルパースクリプトを使用（推奨）
+
+最も簡単な方法は、プロジェクト内のヘルパースクリプトを使用することです：
+
 ```bash
+# スクリプトに実行権限を付与（初回のみ）
+chmod +x scripts/docker-build.sh scripts/docker-run.sh
+
+# Docker イメージをビルド
+./scripts/docker-build.sh
+
+# コンテナを実行（デフォルト設定）
+./scripts/docker-run.sh
+
+# または、特定のプロファイルとサイト名を指定して実行
+./scripts/docker-run.sh --profile your-profile-name --site yahoo
+```
+
+##### docker-run.sh のオプション
+
+| オプション | 説明 | デフォルト |
+|-----------|------|----------|
+| `-s, --site SITE_NAME` | スクレイピング対象のサイト名 | `yahoo` |
+| `-p, --profile AWS_PROFILE` | AWS CLI プロファイル名 | `default` |
+| `-r, --region AWS_REGION` | AWS リージョン | `ap-northeast-1` |
+| `-i, --image IMAGE_NAME` | Docker イメージ名 | `playwright-cloud-executer:latest` |
+| `--dry-run` | 実行コマンドを表示するのみ | - |
+| `-h, --help` | ヘルプを表示 | - |
+
+##### 実行例
+
+```bash
+# デフォルト設定で実行
+./scripts/docker-run.sh
+
+# 異なるプロファイルで実行
+./scripts/docker-run.sh --profile production --region ap-northeast-1
+
+# ドライラン（実行予定のコマンドを表示）
+./scripts/docker-run.sh --dry-run
+```
+
+#### 方法2：手動でコマンドを実行
+
+より詳細な制御が必要な場合は、手動で Docker コマンドを実行できます：
+
+```bash
+# Docker イメージをビルド
 cd playwright-app
 docker build -t playwright-cloud-executer:latest .
-docker run --rm -e SITE_NAME=yahoo playwright-cloud-executer:latest
+cd ..
+
+# AWS 認証情報を取得
+AWS_PROFILE=your-profile-name
+AWS_ACCESS_KEY=$(aws configure get aws_access_key_id --profile $AWS_PROFILE)
+AWS_SECRET_KEY=$(aws configure get aws_secret_access_key --profile $AWS_PROFILE)
+
+# コンテナを実行（環境変数で認証情報を渡す）
+docker run --rm \
+  -e SITE_NAME=yahoo \
+  -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY \
+  -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY \
+  -e AWS_DEFAULT_REGION=ap-northeast-1 \
+  playwright-cloud-executer:latest
+```
+
+#### Docker での実行フロー
+
+1. **ホストの AWS CLI プロファイルから認証情報を取得**
+   - `aws configure get` コマンドで AWS アクセスキー等を取得
+
+2. **認証情報を環境変数としてコンテナに渡す**
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_DEFAULT_REGION`
+   - `AWS_SESSION_TOKEN`（MFA使用時）
+
+3. **アプリケーション実行**
+   - コンテナ内のアプリケーション（`node dist/index.js`）が環境変数から認証情報を読み取り、AWS Secrets Manager にアクセス
+   - 残りの処理はローカル実行時と同じ
+
+#### Docker イメージのビルド最適化
+
+既存の Dockerfile はマルチステージビルドを採用しており、最終的なイメージサイズを最小化しています：
+
+- **ステージ1（ビルド）**: npm install と TypeScript コンパイル
+- **ステージ2（実行）**: 最小限の構成で node_modules と dist をコピー
+- **日本語フォント**: 日本語コンテンツの正確な処理に対応
+
+```bash
+# キャッシュを使用せずビルド（アップデート時）
+./scripts/docker-build.sh --no-cache
+```
+
+#### トラブルシューティング
+
+##### Docker イメージが見つからない
+
+```bash
+# イメージ一覧を確認
+docker images | grep playwright
+
+# イメージをビルド
+./scripts/docker-build.sh
+```
+
+##### AWS 認証情報エラー
+
+```bash
+# AWS CLI プロファイルが正しく設定されているか確認
+aws configure list --profile your-profile-name
+
+# AWS Secrets Manager にアクセスできるか確認
+aws secretsmanager list-secrets --profile your-profile-name --region ap-northeast-1
+```
+
+##### コンテナ内でのログ確認
+
+スクリプトが出力するログから問題を特定できます：
+
+```bash
+# 詳細ログを表示しながら実行
+./scripts/docker-run.sh --dry-run  # 実行コマンドを確認
 ```
 
 ## AWS デプロイメント
