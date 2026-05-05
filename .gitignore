@@ -13,6 +13,9 @@ dist/
 playwright-app/.env
 playwright-app/.env.local
 
+# Secrets & Configuration
+ecs-task-definition.json
+
 # Logs
 logs/
 *.log
