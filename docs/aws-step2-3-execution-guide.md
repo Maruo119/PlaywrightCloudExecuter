@@ -32,14 +32,19 @@ aws configure list --profile default
 
 以下の情報は、スクリプト実行前に確認してください：
 
-| 項目 | 値 |
-|------|-----|
-| AWS Account ID | `442426886752` |
-| Region | `ap-northeast-1` |
-| ExecutionRole ARN | `arn:aws:iam::442426886752:role/Playwright-ExecutionRole` |
-| ECR Repository URI | `442426886752.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer` |
-| ECS Cluster Name | `playwright-cloud-executer-cluster` |
-| S3 Bucket | `playwright-output-bucket` |
+| 項目 | 値 | 例 |
+|------|-----|-----|
+| AWS Account ID | `${AWS_ACCOUNT_ID}` | `123456789012` |
+| Region | `${AWS_REGION}` | `ap-northeast-1` |
+| ExecutionRole ARN | `arn:aws:iam::${AWS_ACCOUNT_ID}:role/Playwright-ExecutionRole` | `arn:aws:iam::123456789012:role/Playwright-ExecutionRole` |
+| ECR Repository URI | `${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/playwright-cloud-executer` | `123456789012.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer` |
+| ECS Cluster Name | `playwright-cloud-executer-cluster` | `playwright-cloud-executer-cluster` |
+| S3 Bucket | `playwright-output-bucket` | `playwright-output-bucket` |
+
+**⚠️ シークレット情報の注意:**
+- AWS Account ID や ARN は機密情報です
+- リポジトリに commit する前に、必ずマスキング版を使用してください
+- ローカルでの実行時は、自分の AWS Account ID に置き換えて実行してください
 
 ---
 
@@ -73,10 +78,10 @@ cd C:\Users\umesk\OneDrive\ドキュメント\Claude\Projects\PlaywrightCloudExe
 ========================================
 フェーズ2: Docker イメージのビルド・プッシュ
 ========================================
-AWS Account ID: 442426886752
+AWS Account ID: ${AWS_ACCOUNT_ID}
 Region: ap-northeast-1
-ECR Registry: 442426886752.dkr.ecr.ap-northeast-1.amazonaws.com
-Image URI: 442426886752.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest
+ECR Registry: ${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-1.amazonaws.com
+Image URI: ${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest
 
 ステップ1: ECR へのログイン...
 ✓ ECR ログイン成功
@@ -112,14 +117,43 @@ AWS Console で ECR リポジトリを確認：
 
 ### **フェーズ3: ECS タスク定義の登録**
 
-#### ステップ1: タスク定義ファイルを確認
+#### ステップ0: タスク定義ファイルを準備
+
+**注意: `ecs-task-definition.json` はシークレット情報を含むため .gitignore に登録されています。**
+
+以下の手順で自分の環境用ファイルを準備してください：
+
+```powershell
+# サンプル版から自分用ファイルを作成
+Copy-Item .\ecs-task-definition.template.json .\ecs-task-definition.json
+
+# ecs-task-definition.json をテキストエディタで開いて、以下を置換
+# ${AWS_ACCOUNT_ID} をあなたの AWS Account ID に置換
+# 例: 442426886752
+```
+
+**ファイルの場所:**
+```
+プロジェクトルート/
+├── ecs-task-definition.json        ← ローカル用（git 対象外）
+└── ecs-task-definition.template.json ← サンプル版（git 登録済み）
+```
+
+#### ステップ1: タスク定義ファイルの確認
+
+以下のファイルが存在することを確認してください：
 
 ```
 プロジェクトルート/
-├── ecs-task-definition.json
+├── ecs-task-definition.json           ← ローカル用（${AWS_ACCOUNT_ID} を置換済み）
+├── ecs-task-definition.template.json  ← サンプル版（git 登録済み）
 └── scripts/
     └── register-task-definition.ps1
 ```
+
+✅ **ecs-task-definition.json の確認:**
+- `${AWS_ACCOUNT_ID}` が自分の AWS Account ID に置換されているか
+- `.gitignore` に登録されているため git の対象外です
 
 **ファイル内容の確認** - `ecs-task-definition.json` の重要な部分：
 
@@ -128,11 +162,11 @@ AWS Console で ECR リポジトリを確認：
   "family": "playwright-cloud-executer",
   "cpu": "512",
   "memory": "1024",
-  "taskRoleArn": "arn:aws:iam::442426886752:role/Playwright-ExecutionRole",
-  "executionRoleArn": "arn:aws:iam::442426886752:role/Playwright-ExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/Playwright-ExecutionRole",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/Playwright-ExecutionRole",
   "containerDefinitions": [
     {
-      "image": "442426886752.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest",
       "logConfiguration": {
         "awslogs-group": "/ecs/playwright-cloud-executer",
         "awslogs-region": "ap-northeast-1"
@@ -142,7 +176,9 @@ AWS Console で ECR リポジトリを確認：
 }
 ```
 
-**これらの値がユーザーの設定と一致しているか確認してください**
+**⚠️ 重要: 実行前の確認**
+- `${AWS_ACCOUNT_ID}` をあなたの AWS Account ID に置き換えてください
+- ExecutionRole ARN がユーザーの設定と一致しているか確認してください
 
 #### ステップ2: スクリプトを実行
 
@@ -172,7 +208,7 @@ Task Definition File: .\ecs-task-definition.json
 
 ステップ2: タスク定義を AWS に登録...
 ✓ タスク定義登録成功
-  - ARN: arn:aws:ecs:ap-northeast-1:442426886752:task-definition/playwright-cloud-executer:1
+  - ARN: arn:aws:ecs:ap-northeast-1:${AWS_ACCOUNT_ID}:task-definition/playwright-cloud-executer:1
   - Revision: 1
 
 ステップ3: 登録されたタスク定義を確認...
@@ -180,7 +216,7 @@ Task Definition File: .\ecs-task-definition.json
   - Family: playwright-cloud-executer
   - Revision: 1
   - Status: ACTIVE
-  - Image: 442426886752.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest
+  - Image: ${AWS_ACCOUNT_ID}.dkr.ecr.ap-northeast-1.amazonaws.com/playwright-cloud-executer:latest
 
 ========================================
 ✓ フェーズ3 完了！
@@ -295,8 +331,11 @@ aws ecs run-task `
   --task-definition playwright-cloud-executer:1 `
   --launch-type FARGATE `
   --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SG_ID],assignPublicIp=ENABLED}" `
-  --region ap-northeast-1
+  --region ap-northeast-1 `
+  --profile default
 ```
+
+**⚠️ 注意:** `--profile default` をご自分の AWS CLI プロファイルに置き換えてください
 
 詳細はガイドドキュメント（`docs/aws-step4-manual-execution.md`）を参照してください。
 
