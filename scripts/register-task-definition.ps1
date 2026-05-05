@@ -1,15 +1,15 @@
 # ============================================================================
 # register-task-definition.ps1
 # ============================================================================
-# フェーズ3: ECS タスク定義を登録するスクリプト
+# Phase 3: Register ECS task definition
 #
-# 使用方法:
+# Usage:
 #   .\scripts\register-task-definition.ps1
 #
-# 前提条件:
-#   - AWS CLI がインストール済みであること
-#   - AWS CLI プロファイル (default) が設定済みであること
-#   - ecs-task-definition.json がプロジェクトルートに存在すること
+# Prerequisites:
+#   - AWS CLI installed
+#   - AWS CLI profile (default) configured
+#   - ecs-task-definition.json exists in project root
 # ============================================================================
 
 param(
@@ -20,45 +20,45 @@ param(
 )
 
 # ============================================================================
-# 設定の確認
+# Configuration
 # ============================================================================
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "フェーズ3: ECS タスク定義の登録" -ForegroundColor Cyan
+Write-Host "Phase 3: ECS Task Definition Registration" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Region: $Region" -ForegroundColor Yellow
 Write-Host "Task Definition File: $TaskDefinitionFile" -ForegroundColor Yellow
 Write-Host ""
 
 # ============================================================================
-# ステップ1: タスク定義ファイルの確認
+# Step 1: Verify Task Definition File
 # ============================================================================
 
-Write-Host "ステップ1: タスク定義ファイルを確認..." -ForegroundColor Cyan
+Write-Host "Step 1: Verifying task definition file..." -ForegroundColor Cyan
 
 if (-not (Test-Path $TaskDefinitionFile)) {
-    Write-Host "✗ エラー: タスク定義ファイルが見つかりません: $TaskDefinitionFile" -ForegroundColor Red
+    Write-Host "✗ Error: Task definition file not found: $TaskDefinitionFile" -ForegroundColor Red
     exit 1
 }
 
 try {
     $TaskDefinition = Get-Content $TaskDefinitionFile | ConvertFrom-Json
-    Write-Host "✓ タスク定義ファイル読み込み成功" -ForegroundColor Green
+    Write-Host "✓ Task definition file loaded successfully" -ForegroundColor Green
     Write-Host "  - Family: $($TaskDefinition.family)" -ForegroundColor Gray
     Write-Host "  - CPU: $($TaskDefinition.cpu)" -ForegroundColor Gray
     Write-Host "  - Memory: $($TaskDefinition.memory)" -ForegroundColor Gray
 } catch {
-    Write-Host "✗ タスク定義ファイルの解析に失敗しました: $_" -ForegroundColor Red
+    Write-Host "✗ Failed to parse task definition file: $_" -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
 
 # ============================================================================
-# ステップ2: タスク定義の登録
+# Step 2: Register Task Definition
 # ============================================================================
 
-Write-Host "ステップ2: タスク定義を AWS に登録..." -ForegroundColor Cyan
+Write-Host "Step 2: Registering task definition with AWS..." -ForegroundColor Cyan
 
 $RegisterCmd = "aws ecs register-task-definition `
   --cli-input-json file://$TaskDefinitionFile `
@@ -66,25 +66,25 @@ $RegisterCmd = "aws ecs register-task-definition `
   --profile $Profile"
 
 if ($DryRun) {
-    Write-Host "[DRY RUN] タスク定義登録コマンド:" -ForegroundColor Yellow
+    Write-Host "[DRY RUN] Task definition registration command:" -ForegroundColor Yellow
     Write-Host $RegisterCmd -ForegroundColor Yellow
 } else {
     try {
-        Write-Host "実行: aws ecs register-task-definition..." -ForegroundColor Gray
+        Write-Host "Executing: aws ecs register-task-definition..." -ForegroundColor Gray
         $Result = Invoke-Expression $RegisterCmd | ConvertFrom-Json
 
         if ($Result.taskDefinition) {
             $TaskDefArn = $Result.taskDefinition.taskDefinitionArn
             $TaskDefRev = $Result.taskDefinition.revision
 
-            Write-Host "✓ タスク定義登録成功" -ForegroundColor Green
+            Write-Host "✓ Task definition registered successfully" -ForegroundColor Green
             Write-Host "  - ARN: $TaskDefArn" -ForegroundColor Green
             Write-Host "  - Revision: $TaskDefRev" -ForegroundColor Green
         } else {
-            throw "タスク定義の登録に失敗しました"
+            throw "Failed to register task definition"
         }
     } catch {
-        Write-Host "✗ タスク定義登録失敗: $_" -ForegroundColor Red
+        Write-Host "✗ Task definition registration failed: $_" -ForegroundColor Red
         exit 1
     }
 }
@@ -92,10 +92,10 @@ if ($DryRun) {
 Write-Host ""
 
 # ============================================================================
-# ステップ3: 登録されたタスク定義を確認
+# Step 3: Verify Task Definition Registration
 # ============================================================================
 
-Write-Host "ステップ3: 登録されたタスク定義を確認..." -ForegroundColor Cyan
+Write-Host "Step 3: Verifying task definition registration..." -ForegroundColor Cyan
 
 $DescribeCmd = "aws ecs describe-task-definition `
   --task-definition playwright-cloud-executer `
@@ -103,11 +103,11 @@ $DescribeCmd = "aws ecs describe-task-definition `
   --profile $Profile"
 
 if ($DryRun) {
-    Write-Host "[DRY RUN] タスク定義確認コマンド:" -ForegroundColor Yellow
+    Write-Host "[DRY RUN] Task definition verification command:" -ForegroundColor Yellow
     Write-Host $DescribeCmd -ForegroundColor Yellow
 } else {
     try {
-        Write-Host "実行: aws ecs describe-task-definition..." -ForegroundColor Gray
+        Write-Host "Executing: aws ecs describe-task-definition..." -ForegroundColor Gray
         $DescribeResult = Invoke-Expression $DescribeCmd | ConvertFrom-Json
 
         if ($DescribeResult.taskDefinition) {
@@ -116,16 +116,16 @@ if ($DryRun) {
             $Status = $DescribeResult.taskDefinition.status
             $Image = $DescribeResult.taskDefinition.containerDefinitions[0].image
 
-            Write-Host "✓ タスク定義確認成功" -ForegroundColor Green
+            Write-Host "✓ Task definition verified successfully" -ForegroundColor Green
             Write-Host "  - Family: $Family" -ForegroundColor Green
             Write-Host "  - Revision: $Revision" -ForegroundColor Green
             Write-Host "  - Status: $Status" -ForegroundColor Green
             Write-Host "  - Image: $Image" -ForegroundColor Green
         } else {
-            throw "タスク定義の確認に失敗しました"
+            throw "Failed to verify task definition"
         }
     } catch {
-        Write-Host "✗ タスク定義確認失敗: $_" -ForegroundColor Red
+        Write-Host "✗ Task definition verification failed: $_" -ForegroundColor Red
         exit 1
     }
 }
@@ -133,16 +133,16 @@ if ($DryRun) {
 Write-Host ""
 
 # ============================================================================
-# 完了
+# Complete
 # ============================================================================
 
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "✓ フェーズ3 完了！" -ForegroundColor Green
+Write-Host "✓ Phase 3 Complete!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "タスク定義が登録されました:"
+Write-Host "Task definition registered successfully:"
 Write-Host "  - Family: playwright-cloud-executer" -ForegroundColor Green
 Write-Host ""
-Write-Host "次のステップ: フェーズ4 で Fargate タスクを手動実行してください" -ForegroundColor Yellow
+Write-Host "Next step: Execute Fargate task manually in Phase 4" -ForegroundColor Yellow
 Write-Host "  aws ecs run-task --cluster playwright-cloud-executer-cluster ..." -ForegroundColor Yellow
 Write-Host ""
