@@ -1,5 +1,5 @@
 # ステージ1: ビルドステージ
-FROM mcr.microsoft.com/playwright:v1.40.0-focal AS builder
+FROM mcr.microsoft.com/playwright:v1.59.1-focal AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY src ./src
 RUN npm run build
 
 # ステージ2: ランタイムステージ
-FROM mcr.microsoft.com/playwright:v1.40.0-focal
+FROM mcr.microsoft.com/playwright:v1.59.1-focal
 
 WORKDIR /app
 
