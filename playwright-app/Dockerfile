@@ -1,5 +1,5 @@
 # ステージ1: ビルドステージ
-FROM mcr.microsoft.com/playwright:v1.59.1-focal AS builder
+FROM mcr.microsoft.com/playwright:v1.59.1-noble AS builder
 
 WORKDIR /app
 
@@ -15,8 +15,15 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
+# JSON 設定ファイルを dist にコピー
+RUN find src -name "*.json" -not -name "package*.json" | while read file; do \
+    dir=$(dirname "$file" | sed 's|src/|dist/|'); \
+    mkdir -p "$dir"; \
+    cp "$file" "$dir/$(basename "$file")"; \
+done
+
 # ステージ2: ランタイムステージ
-FROM mcr.microsoft.com/playwright:v1.59.1-focal
+FROM mcr.microsoft.com/playwright:v1.59.1-noble
 
 WORKDIR /app
 
