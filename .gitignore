@@ -15,7 +15,6 @@ playwright-app/.env.local
 
 # Secrets & Configuration
 ecs-task-definition.json
-ecs-task-definition-final.json
 
 # Logs
 logs/
