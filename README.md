@@ -251,7 +251,7 @@ aws secretsmanager list-secrets --profile your-profile-name --region ap-northeas
 
 ## 主な技術スタック
 
-- **Playwright** (v1.40.0): ブラウザ自動化
+- **Playwright** (v1.59.1): ブラウザ自動化
 - **Node.js**: アプリケーション開発
 - **TypeScript**: 型安全性
 - **AWS Fargate**: コンテナ実行基盤
