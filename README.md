@@ -5,10 +5,14 @@ PlaywrightをAWS Fargateで定期実行するシステムです。EventBridgeで
 ✅ **フェーズ1 実装完了**
 - TypeScript 開発環境セットアップ完了
 - Playwright ブラウザ自動化実装完了
-- Yahoo スクレイパー実装完了（title 取得→S3 保存）
+- Yahoo ホームページ スクレイパー実装完了（title 取得→S3 保存）
 - ローカル動作確認済み
 
 ✅ **フェーズ2 実装完了**
+- Yahoo ニュース スクレイパー実装完了（複数記事取得→JSON 保存）
+- 複数フェーズの直列実行機能実装完了
+
+✅ **フェーズ3 実装完了**
 - AWS Secrets Manager への移行完了
 - ローカル・本番環境ともに Secrets Manager でシークレット管理
 
@@ -19,26 +23,43 @@ PlaywrightCloudExecuter/
 ├── playwright-app/          # Playwrightアプリケーション本体
 │   ├── src/
 │   │   ├── common/          # 共通処理（ブラウザ管理、ロギング等）
+│   │   ├── config/          # 非機密設定
 │   │   ├── site/            # サイト別処理
-│   │   │   └── yahoo/       # Yahoo サイト処理
+│   │   │   ├── yahoo/       # Yahoo ホームページ処理
+│   │   │   │   ├── config.json
+│   │   │   │   └── scraper.ts
+│   │   │   └── news-yahoo/  # Yahoo ニュース処理
+│   │   │       └── scraper.ts
 │   │   └── utils/           # ユーティリティ関数
 │   ├── Dockerfile
 │   ├── package.json
 │   └── tsconfig.json
 ├── lambda-function/         # EventBridge連携Lambda関数（Python）
 │   └── requirements.txt
+├── scripts/                 # ビルド・デプロイスクリプト
+│   ├── docker-build.sh
+│   ├── docker-run.sh
+│   ├── deploy-docker-to-ecr.ps1
+│   └── register-task-definition.ps1
 └── docs/                    # ドキュメント
     ├── architecture.md
     ├── setup-guide.md
-    └── aws-resources.md
+    ├── aws-resources.md
+    ├── aws-step1-console-guide.md
+    └── aws-step2-3-execution-guide.md
 ```
 
 ## 機能
 
-- **Playwrightによる自動化**: https://www.yahoo.co.jp/ から title タグを取得
+- **複数フェーズのスクレイピング**: 複数サイトを直列実行
+  - **Phase 1**: https://www.yahoo.co.jp/ から title タグを取得
+  - **Phase 2**: https://news.yahoo.co.jp/ から複数のニュース記事（タイトル・URL）を取得
 - **S3への保存**: 取得結果をPlaywrightOutputバケットに格納
+  - Phase 1: テキスト形式（`yahoo/title_{timestamp}.txt`）
+  - Phase 2: JSON形式（`news-yahoo/articles_{timestamp}.json`）
 - **定期実行**: EventBridgeで1時間ごとに自動実行
-- **スケーラビリティ**: サイト追加により複数サイトに対応可能
+- **フェーズごとの独立したエラー処理**: 各フェーズの失敗が他のフェーズに影響しない
+- **スケーラビリティ**: サイト追加により複数サイト・複数フェーズに対応可能
 - **日本語対応**: 日本語コンテンツの正確な処理に対応
 - **ログ記録**: CloudWatch Logsに実行ログを記録
 
