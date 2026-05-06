@@ -55,14 +55,14 @@
 
 ### 1. Playwright Cloud Executer (Node.js)
 
-**役割**: Web スクレイピング自動化
+**役割**: Web スクレイピング自動化（複数フェーズ直列実行）
 
 **実装済み機能:**
 
 ```typescript
 // ブラウザ管理
 BrowserManager
-├── launchBrowser()      // Chromium 起動
+├── launchBrowser()      // Chromium 起動（1回のみ）
 ├── createPage()         // 新規ページ作成
 ├── navigate()           // URL アクセス
 └── closeBrowser()       // リソース解放
@@ -84,18 +84,50 @@ ErrorHandler
 ConfigLoader
 ├── loadAppConfig()     // 環境変数から読み込み
 └── loadSiteConfig()    // サイト別設定読み込み
+
+// Secrets Manager
+SecretsManagerClient
+├── getSecret()         // AWS Secrets Manager からシークレット取得
+└── initializeClient()  // SecretsManager クライアント初期化
 ```
 
-### 2. Yahoo スクレイパー
+**複数フェーズアーキテクチャ:**
+
+```
+main()
+├─ Phase 1: Yahoo ホームページ
+│  ├─ ページ作成
+│  ├─ URL アクセス
+│  ├─ YahooScraper 実行（title 取得）
+│  ├─ S3 保存（txt 形式）
+│  └─ ページクローズ
+│
+├─ Phase 2: Yahoo ニュース
+│  ├─ ページ作成
+│  ├─ URL アクセス
+│  ├─ NewsYahooScraper 実行（複数記事取得）
+│  ├─ S3 保存（JSON 形式）
+│  └─ ページクローズ
+│
+└─ ブラウザクローズ（最後に一括）
+
+特徴：
+- 複数フェーズで共有ブラウザセッション
+- 各フェーズで独立したエラーハンドリング
+- 1 つのフェーズ失敗が他フェーズに影響しない
+- ログで各フェーズの進捗を追跡可能
+```
+
+### 2. Yahoo スクレイパー（Phase 1）
 
 **処理フロー:**
 
 ```
-1. ブラウザセッション開始
+1. ブラウザセッション（共有）を使用
 2. https://www.yahoo.co.jp/ にアクセス
 3. page.title() で title タグを取得
    → 「Yahoo! JAPAN」
-4. S3 に保存
+4. S3 に保存（テキスト形式）
    キー: yahoo/title_1777901450774.txt
    内容:
    ─────────────────────────────
@@ -105,14 +137,56 @@ ConfigLoader
    Scraped At: 2025-01-01T12:34:56.789Z
    Timestamp: 1777901450774
    ─────────────────────────────
-5. ブラウザセッション終了
+5. ページをクローズ
 ```
 
 **実装ファイル:**
 - `src/site/yahoo/scraper.ts` - スクレイパーロジック
 - `src/site/yahoo/config.json` - Yahoo 設定
 
-#### 2.1 config.json の構造と利用方法
+### 2.1 Yahoo ニュース スクレイパー（Phase 2）
+
+**役割**: Yahoo ニュースから複数ニュース記事を取得
+
+**処理フロー:**
+
+```
+1. ブラウザセッション（共有）を使用
+2. https://news.yahoo.co.jp/ にアクセス
+3. トピックスセクション (section#uamods-topics) を特定
+4. li 要素（ニュースアイテム）を走査
+5. 各アイテムから以下を抽出：
+   - title: リンクのテキストコンテンツ
+   - url: href 属性
+   例: { title: "タイトル文字列", url: "https://..." }
+6. S3 に保存（JSON 形式）
+   キー: news-yahoo/articles_1777901450774.json
+   内容:
+   {
+     "siteName": "news-yahoo",
+     "baseUrl": "https://news.yahoo.co.jp/",
+     "articleCount": 15,
+     "articles": [
+       { "title": "ニュースタイトル1", "url": "https://..." },
+       { "title": "ニュースタイトル2", "url": "https://..." },
+       ...
+     ],
+     "scrapedAt": "2025-01-01T12:34:56.789Z",
+     "timestamp": 1777901450774
+   }
+7. ページをクローズ
+```
+
+**特徴:**
+- セレクタベースの抽出（XPath や CSS セレクタ使用）
+- 複数記事の JSON 形式での保存
+- アイテム単位でのエラーハンドリング（1 つ失敗しても続行）
+- 記事数カウント機能
+
+**実装ファイル:**
+- `src/site/news-yahoo/scraper.ts` - スクレイパーロジック（設定ファイルなし）
+
+#### 2.2 config.json の構造と利用方法（Yahoo ホームページ用）
 
 **ファイル**: `src/site/yahoo/config.json`
 
@@ -197,7 +271,7 @@ const command = new PutObjectCommand({
 ] S3に保存しています: s3://PlaywrightOutput/yahoo/title_1777901450774.txt
 ```
 
-#### 2.2 複数サイト対応への拡張性
+#### 2.3 複数サイト対応への拡張性
 
 config.json の設計により、複数サイト対応が容易です。
 
@@ -241,7 +315,7 @@ $env:SITE_NAME="amazon"
 npm run dev
 ```
 
-#### 2.3 将来の selectors 拡張
+#### 2.4 将来の selectors 拡張（Yahoo ホームページ用）
 
 現在、selectors は `title` のみですが、将来複数データ抽出時に拡張可能：
 
@@ -320,37 +394,64 @@ async scrapeMultipleData(page: Page): Promise<ScrapedData> {
 環境変数ロード ✓
   │ NODE_ENV, AWS_REGION, AWS_S3_BUCKET等
   ▼
-サイト設定ロード ✓
-  │ src/site/yahoo/config.json
-  ▼
 ロガー初期化 ✓
   │ Winston ロギング設定
   ▼
-ブラウザ起動 ✓
+ブラウザ起動 ✓（1回のみ）
   │ Chromium 起動（--disable-dev-shm-usage フラグ）
   │ メモリ効率化（0.5vCPU/1GB 環境対応）
   ▼
-ページ作成 ✓
-  │ 言語設定: 日本語
-  │ タイムアウト: 30秒
+┌─────────────────────────────────────────┐
+│ ===== Phase 1: Yahoo ホームページ =====  │
+├─────────────────────────────────────────┤
+│ ┌─ ページ作成 ✓                         │
+│ │  言語設定: 日本語                     │
+│ │  タイムアウト: 30秒                  │
+│ ▼                                      │
+│ ┌─ URL アクセス ✓                      │
+│ │  https://www.yahoo.co.jp/           │
+│ │  waitUntil: 'load'                  │
+│ ▼                                      │
+│ ┌─ Title 取得 ✓                        │
+│ │  page.title() → 「Yahoo! JAPAN」     │
+│ │  リトライロジック: 最大3回           │
+│ ▼                                      │
+│ ┌─ S3 保存（txt） ✓                    │
+│ │  キー: yahoo/title_{timestamp}.txt  │
+│ ▼                                      │
+│ ┌─ ページクローズ ✓                     │
+└─────────────────────────────────────────┘
+  │
+  ▼ (失敗でも次フェーズへ)
+┌─────────────────────────────────────────┐
+│ ===== Phase 2: Yahoo ニュース =====     │
+├─────────────────────────────────────────┤
+│ ┌─ ページ作成 ✓                         │
+│ ▼                                      │
+│ ┌─ URL アクセス ✓                      │
+│ │  https://news.yahoo.co.jp/          │
+│ │  waitUntil: 'load'                  │
+│ ▼                                      │
+│ ┌─ トピックスセクション特定 ✓           │
+│ │  section#uamods-topics              │
+│ ▼                                      │
+│ ┌─ 複数記事を走査 ✓                    │
+│ │  各 li 要素から title/url を抽出     │
+│ │  リトライロジック: 最大3回           │
+│ ▼                                      │
+│ ┌─ S3 保存（JSON） ✓                   │
+│ │  キー: news-yahoo/articles_{...}.json│
+│ │  articleCount: 複数件                │
+│ ▼                                      │
+│ ┌─ ページクローズ ✓                     │
+└─────────────────────────────────────────┘
+  │
   ▼
-URL アクセス ✓
-  │ https://www.yahoo.co.jp/
-  │ waitUntil: 'load'
-  ▼
-Title 取得 ✓
-  │ page.title() → 「Yahoo! JAPAN」
-  │ リトライロジック: 最大3回（失敗時）
-  ▼
-S3 保存 ⏳
-  │ PutObjectCommand
-  │ キー: yahoo/title_{timestamp}.txt
-  │ エラーハンドリング実装済み
-  ▼
-ブラウザ終了 ✓
+ブラウザ終了 ✓（最後に一括）
   │ リソース解放
   ▼
 実行終了 ✓
+  │ プロセス終了コード（0: 成功, 1: エラー）
 ```
 
 ---
@@ -532,6 +633,11 @@ npx playwright install
 npm run dev
 ```
 
+複数フェーズ対応：
+- Phase 1 (Yahoo ホームページ) と Phase 2 (Yahoo ニュース) が直列実行
+- 各フェーズで独立したエラーハンドリング
+- 詳細ログで各フェーズの進捗を追跡可能
+
 ### フェーズ2: Docker コンテナ化 ✓ 実装完了
 
 ```
@@ -539,11 +645,21 @@ docker build -t playwright-cloud-executer:latest .
 docker run --rm playwright-cloud-executer:latest
 ```
 
+Docker 内でも複数フェーズを直列実行：
+- AWS CLI プロファイルから認証情報を自動取得
+- AWS Secrets Manager で動的にシークレット取得
+- マルチステージビルドでイメージサイズ最小化
+
 ### フェーズ3-4: AWS デプロイ ⏳ 次ステップ
 
 ```
 ECR プッシュ → ECS Fargate デプロイ → Lambda 連携 → EventBridge スケジュール
 ```
+
+複数フェーズのスケーリング：
+- 複数のサイト/フェーズを追加可能
+- 各フェーズが独立して実行（1 つの失敗が他に影響しない）
+- CloudWatch Logs で全フェーズのログを監視
 
 ---
 
@@ -551,19 +667,25 @@ ECR プッシュ → ECS Fargate デプロイ → Lambda 連携 → EventBridge 
 
 ### 実行時間目標
 
-- **Yahoo title 取得**: 5分以内
-- **ブラウザ起動**: 10秒以内
-- **ページロード**: 20秒以内
+**複数フェーズ全体（Phase 1 + Phase 2）:**
+- **全フェーズ完了**: 10分以内
+- **ブラウザ起動**: 10秒以内（1回のみ）
+- **各ページロード**: 20秒以内
 - **S3 保存**: 2秒以内
+
+**フェーズ別:**
+- **Phase 1 (Yahoo title)**: 5分以内
+- **Phase 2 (Yahoo ニュース)**: 5分以内
 
 ### メモリ使用量目標
 
-- **Chromium**: 300-400 MB
+- **Chromium**: 300-400 MB（複数フェーズで共有）
 - **Node.js アプリ**: 100-150 MB
 - **合計**: 500-600 MB（1GB 以下）
 
 ### 実装済みの最適化
 
+**ブラウザレベル:**
 ```typescript
 // マルチステージ Docker ビルド
 FROM playwright:v1.40.0 AS builder
@@ -573,3 +695,8 @@ FROM playwright:v1.40.0 AS builder
 --disable-dev-shm-usage    // /dev/shm メモリ使用を回避
 --no-sandbox               // サンドボックス無効化（セキュリティ許容範囲内）
 ```
+
+**フェーズ最適化:**
+- 複数フェーズで 1 つのブラウザセッションを共有（ブラウザ起動コスト削減）
+- 各フェーズでページを個別にクローズ（メモリリーク防止）
+- ブラウザを最後にのみクローズ（リソース効率化）
