@@ -1,7 +1,6 @@
 ---
 name: environment-setting
-description: Claudeに実装してもらうときに私が使っている環境を毎回指定している。
-例えば、Windows11端末を使っている。shellは使えないのでps1(PowerShell)を使うことなど。これを毎回指示するのではなくskillから読み取るためのプロトコル。
+description: Claudeに実装してもらうときに私が使っている環境を毎回指定している。例えば、Windows11端末を使っている。shellは使えないのでps1（PowerShell）を使うことなど。これを毎回指示するのではなくskillから読み取るためのプロトコル。
 ---
 
 ## 💻 Local Development Environment (Implicit Defaults)
