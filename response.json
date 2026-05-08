@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"message\": \"Fargate task started successfully\", \"taskArn\": \"arn:aws:ecs:ap-northeast-1:442426886752:task/playwright-cloud-executer-cluster/8a7c0b7f092b43469803a9140dff90a8\", \"timestamp\": \"2026-05-08T15:38:07.604479\", \"site\": \"yahoo\"}"}
