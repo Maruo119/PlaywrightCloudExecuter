@@ -31,7 +31,7 @@ class SlackNotifier:
         try:
             secrets_client = boto3.client('secretsmanager')
             response = secrets_client.get_secret_value(
-                SecretId='SLACK_WEBHOOK_URL'
+                SecretId='SLACK_WEBHOOK_URL_NEW2'
             )
             webhook_url = response['SecretString']
             print('[INFO] Slack webhook URL retrieved from Secrets Manager')
