@@ -137,6 +137,4 @@ Write-Host ""
 Write-Host "Task definition registered successfully:"
 Write-Host "  - Family: playwright-cloud-executer" -ForegroundColor Green
 Write-Host ""
-Write-Host "Next step: Execute Fargate task manually in Phase 4" -ForegroundColor Yellow
-Write-Host "  aws ecs run-task --cluster playwright-cloud-executer-cluster ..." -ForegroundColor Yellow
-Write-Host ""
+Write-Host "Next step: Execute Fargate task manually in Phase 4" -Fo

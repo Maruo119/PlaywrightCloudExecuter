@@ -16,11 +16,18 @@ PlaywrightをAWS Fargateで定期実行するシステムです。EventBridgeで
 - AWS Secrets Manager への移行完了
 - ローカル・本番環境ともに Secrets Manager でシークレット管理
 
+✅ **フェーズ4 実装完了**
+- S3 イベント駆動型の Lambda 関数を追加
+- 記事差分検出エンジン実装（URL ベース比較）
+- DynamoDB スナップショット管理機能
+- Slack Webhook による自動通知
+- AWS Console でのセットアップガイド
+
 ## プロジェクト構成
 
 ```
 PlaywrightCloudExecuter/
-├── playwright-app/          # Playwrightアプリケーション本体
+├── playwright-app/          # Playwrightアプリケーション本体（フェーズ1-3）
 │   ├── src/
 │   │   ├── common/          # 共通処理（ブラウザ管理、ロギング等）
 │   │   ├── config/          # 非機密設定
@@ -34,23 +41,34 @@ PlaywrightCloudExecuter/
 │   ├── Dockerfile
 │   ├── package.json
 │   └── tsconfig.json
-├── lambda-function/         # EventBridge連携Lambda関数（Python）
-│   └── requirements.txt
-├── scripts/                 # ビルド・デプロイスクリプト
+├── lambda-function/         # Lambda関数（フェーズ4）
+│   ├── src/
+│   │   ├── diff_detector.py           # 差分検出ロジック
+│   │   ├── slack_notifier.py          # Slack通知処理
+│   │   └── dynamodb_snapshot_manager.py # DynamoDBスナップショット管理
+│   ├── index.py                       # EventBridge連携（フェーズ1-3）
+│   ├── lambda_handler.py              # S3イベント処理（フェーズ4）
+│   ├── requirements.txt
+│   └── README.md
+├── scripts/                 # ビルド・デプロイ・セットアップスクリプト
 │   ├── docker-build.sh
 │   ├── docker-run.sh
 │   ├── deploy-docker-to-ecr.ps1
-│   └── register-task-definition.ps1
+│   ├── register-task-definition.ps1
+│   └── setup-dynamodb-snapshot.sh     # DynamoDBテーブル初期化
 └── docs/                    # ドキュメント
     ├── architecture.md
     ├── setup-guide.md
     ├── aws-resources.md
     ├── aws-step1-console-guide.md
-    └── aws-step2-3-execution-guide.md
+    ├── aws-step2-3-execution-guide.md
+    ├── s3-event-lambda-design.md      # フェーズ4設計書
+    └── lambda-console-setup-guide.md  # Lambda作成手順
 ```
 
 ## 機能
 
+### フェーズ1-3: Playwright スクレイピング
 - **複数フェーズのスクレイピング**: 複数サイトを直列実行
   - **Phase 1**: https://www.yahoo.co.jp/ から title タグを取得
   - **Phase 2**: https://news.yahoo.co.jp/ から複数のニュース記事（タイトル・URL）を取得
@@ -58,10 +76,22 @@ PlaywrightCloudExecuter/
   - Phase 1: テキスト形式（`yahoo/title_{timestamp}.txt`）
   - Phase 2: JSON形式（`news-yahoo/articles_{timestamp}.json`）
 - **定期実行**: EventBridgeで1時間ごとに自動実行
-- **フェーズごとの独立したエラー処理**: 各フェーズの失敗が他のフェーズに影響しない
 - **スケーラビリティ**: サイト追加により複数サイト・複数フェーズに対応可能
 - **日本語対応**: 日本語コンテンツの正確な処理に対応
-- **ログ記録**: CloudWatch Logsに実行ログを記録
+
+### フェーズ4: S3 イベント駆動型の差分検出・Slack 通知
+- **自動差分検出**: S3 に新しい JSON ファイルが登録されると自動トリガー
+- **記事比較**: URL ベースで新規追加・削除された記事を検出
+- **DynamoDB スナップショット**: 前回のデータをスナップショットとして保存・管理
+- **Slack 通知**: 差分がある場合に自動で Slack に通知
+  - 新規記事数・削除記事数を表示
+  - 記事タイトル・URL を含めた詳細情報
+- **エラーハンドリング**: DynamoDB/Slack 通知の失敗時も安全に処理
+
+### 共通機能
+- **フェーズごとの独立したエラー処理**: 各フェーズの失敗が他のフェーズに影響しない
+- **ログ記録**: CloudWatch Logs に詳細なログを記録
+- **シークレット管理**: AWS Secrets Manager で Slack webhook URL を安全に管理
 
 ## セットアップ
 
