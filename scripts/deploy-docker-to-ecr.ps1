@@ -177,7 +177,4 @@ Write-Host ""
 Write-Host "Successfully uploaded to ECR:"
 Write-Host "  - Image URI: $ImageUri" -ForegroundColor Green
 Write-Host "  - Latest Tag: $ImageUriLatest" -ForegroundColor Green
-Write-Host ""
-Write-Host "Next step: Register task definition in Phase 3" -ForegroundColor Yellow
-Write-Host "  .\scripts\register-task-definition.ps1" -ForegroundColor Yellow
-Write-Host ""
+Write-Host 

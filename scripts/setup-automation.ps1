@@ -111,6 +111,3 @@ Write-Host "  1. AWS Console で EventBridge ルールのタイムゾーンを A
 Write-Host "  2. Lambda を手動実行してテスト:" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "     aws lambda invoke --function-name playwright-scheduler --region $AWSRegion --profile $AWSProfile response.json" -ForegroundColor Gray
-Write-Host ""
-Write-Host "  3. CloudWatch Logs で実行ログを確認" -ForegroundColor Yellow
-Write-Host ""

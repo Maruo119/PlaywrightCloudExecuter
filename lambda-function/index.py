@@ -94,7 +94,4 @@ def lambda_handler(event, context):
         error_msg = f'Error launching Fargate task: {str(e)}'
         print(f'ERROR: {error_msg}')
         print(f'Exception: {type(e).__name__}')
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': error_msg})
-        }
+        return 
