@@ -1,4 +1,4 @@
-import json
+﻿import json
 import requests
 import boto3
 from typing import Dict, List, Optional
@@ -62,7 +62,6 @@ class SlackNotifier:
             True if notification was sent successfully, False otherwise
         """
         try:
-            # Build message
             message = self._build_message(
                 site_name,
                 new_articles,
@@ -71,7 +70,6 @@ class SlackNotifier:
                 previous_count
             )
 
-            # Send to Slack
             response = requests.post(
                 self.webhook_url,
                 json=message,
@@ -100,108 +98,23 @@ class SlackNotifier:
         previous_count: int
     ) -> Dict:
         """
-        Build Slack message payload.
-
-        Args:
-            site_name: Site name
-            new_articles: List of new articles
-            deleted_articles: List of deleted articles
-            current_count: Current article count
-            previous_count: Previous article count
-
-        Returns:
-            Message payload for Slack webhook
+        Build Slack message payload showing only new articles.
         """
-        # Build blocks
         blocks = []
 
-        # Header
-        blocks.append({
-            'type': 'header',
-            'text': {
-                'type': 'plain_text',
-                'text': f':newspaper: {site_name} - News Article Update',
-                'emoji': True
-            }
-        })
-
-        # Summary section
-        summary_text = f'*Article Count:* {previous_count} → {current_count}\n'
-        summary_text += f'*New Articles:* {len(new_articles)}\n'
-        summary_text += f'*Deleted Articles:* {len(deleted_articles)}'
-
-        blocks.append({
-            'type': 'section',
-            'text': {
-                'type': 'mrkdwn',
-                'text': summary_text
-            }
-        })
-
-        # New articles section
         if new_articles:
-            blocks.append({'type': 'divider'})
+            article_text = ''
+            for article in new_articles:
+                title = article.get('title', 'Unknown')
+                url = article.get('url', '')
+                article_text += f'• <{url}|{title}>\n'
+
             blocks.append({
                 'type': 'section',
                 'text': {
                     'type': 'mrkdwn',
-                    'text': '*New Articles:*'
+                    'text': article_text.rstrip()
                 }
             })
 
-            for article in new_articles[:5]:  # Show max 5 articles
-                title = article.get('title', 'Unknown')
-                url = article.get('url', '')
-                article_text = f'• <{url}|{title}>'
-                blocks.append({
-                    'type': 'section',
-                    'text': {
-                        'type': 'mrkdwn',
-                        'text': article_text
-                    }
-                })
-
-            if len(new_articles) > 5:
-                blocks.append({
-                    'type': 'section',
-                    'text': {
-                        'type': 'mrkdwn',
-                        'text': f'... and {len(new_articles) - 5} more articles'
-                    }
-                })
-
-        # Deleted articles section
-        if deleted_articles:
-            blocks.append({'type': 'divider'})
-            blocks.append({
-                'type': 'section',
-                'text': {
-                    'type': 'mrkdwn',
-                    'text': '*Deleted Articles:*'
-                }
-            })
-
-            for article in deleted_articles[:5]:  # Show max 5 articles
-                title = article.get('title', 'Unknown')
-                url = article.get('url', '')
-                article_text = f'• ~<{url}|{title}>~'
-                blocks.append({
-                    'type': 'section',
-                    'text': {
-                        'type': 'mrkdwn',
-                        'text': article_text
-                    }
-                })
-
-            if len(deleted_articles) > 5:
-                blocks.append({
-                    'type': 'section',
-                    'text': {
-                        'type': 'mrkdwn',
-                        'text': f'... and {len(deleted_articles) - 5} more articles'
-                    }
-                })
-
-        return {
-            'blocks': blocks
-        }
+        return {'blocks': blocks}
